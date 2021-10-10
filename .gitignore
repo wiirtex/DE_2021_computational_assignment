@@ -1,0 +1,16 @@
+
+*.pyc
+*.xml
+*.iml
+*.py
+*.cfg
+*.exe
+*.*
+venv/Scripts/activate
+venv/Lib/site-packages/matplotlib/mpl-data/matplotlibrc
+venv/Lib/site-packages/matplotlib/mpl-data/fonts/ttf/LICENSE_STIX
+venv/Lib/site-packages/matplotlib/mpl-data/fonts/ttf/LICENSE_DEJAVU
+!main.py
+!.gitignore
+venv/Lib/site-packages/pip/_internal/main.py
+venv/Lib/site-packages/pip/_internal/cli/main.py
