@@ -1,257 +1,155 @@
+from copy import copy
+
+import diffEquation
+import Function
 import PySimpleGUI as sg
-import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import Printer
+import GraphErrorCalculator
 
-class Function:
-    c: float
-
-    def solve_ivp(self, x: float, y: float):
-        self.c = (y + x) / x ** 2
-
-    @staticmethod
-    def get_derivative(x: float, y: float) -> float:
-        return 1 + 2 * y / x
-
-    def get_exact(self, x: float) -> float:
-        return self.c * x * x - x
-
-
-class ISolver:
-    localError: list
-    globalError: list
-    exact: list
-    calculated: list
-    x: list
-    f: Function
-    x0: float
-    y0: float
-
-    def __init__(self, x0: float, y0: float):
-        self.x0 = x0
-        self.y0 = y0
-        self.f = Function()
-        self.f.solve_ivp(x0, y0)
-
-    def solve(self, end: float, interval: float) -> (list, list, list, list, list):
-        pass
-
-
-class EulerSolver(ISolver):
-    def __init__(self, x0: float, y0: float):
-        super().__init__(x0, y0)
-
-    def solve(self, end: float, interval: float) -> (list, list, list, list, list):
-        self.calculated = [self.y0]
-        self.exact = [self.y0]
-        xi = self.x0
-        self.x = [self.x0]
-        self.localError = [0]
-        self.globalError = [0]
-        while xi <= end:
-            self.calculated.append(self.calculated[-1] + interval * self.f.get_derivative(xi, self.calculated[-1]))
-            xi += interval
-            self.x.append(xi)
-            self.exact.append(self.f.get_exact(xi))
-            self.globalError.append(self.exact[-1] - self.calculated[-1])
-            self.localError.append(self.exact[-1] - self.exact[-2] - interval * self.f.get_derivative(xi - interval,
-                                                                                                      self.exact[-2]))
-        return self.calculated, self.exact, self.localError, self.globalError, self.x
-
-
-class ImprovedEulerSolver(ISolver):
-    def __init__(self, x0: float, y0: float):
-        super().__init__(x0, y0)
-
-    def solve(self, end: float, interval: float) -> (list, list, list, list, list):
-        self.calculated = [self.y0]
-        self.exact = [self.y0]
-        xi = self.x0
-        self.x = [self.x0]
-        self.localError = [0]
-        self.globalError = [0]
-        while xi <= end:
-            self.calculated.append(self.calculated[-1] + interval * self.f.get_derivative(
-                xi + interval / 2, self.calculated[-1] + interval / 2 * self.f.get_derivative(xi, self.calculated[-1])))
-            xi += interval
-            self.x.append(xi)
-            self.exact.append(self.f.get_exact(xi))
-            self.globalError.append(self.exact[-1] - self.calculated[-1])
-            self.localError.append(self.exact[-1] - self.exact[-2] - interval * self.f.get_derivative(
-                xi - interval / 2, self.calculated[-2] + interval / 2 * self.f.get_derivative(
-                    xi - interval, self.calculated[-2])))
-
-        return self.calculated, self.exact, self.localError, self.globalError, self.x
-
-
-class RungeKuttaSolver(ISolver):
-    def __init__(self, x0: float, y0: float):
-        super().__init__(x0, y0)
-
-    def solve(self, end: float, interval: float) -> (list, list, list, list, list):
-        self.calculated = [self.y0]
-        self.exact = [self.y0]
-        xi = self.x0
-        self.x = [self.x0]
-        self.localError = [0]
-        self.globalError = [0]
-        while xi <= end:
-            k1 = self.f.get_derivative(xi, self.calculated[-1])
-            k2 = self.f.get_derivative(xi + interval / 2, self.calculated[-1] + interval * k1 / 2)
-            k3 = self.f.get_derivative(xi + interval / 2, self.calculated[-1] + interval * k2 / 2)
-            k4 = self.f.get_derivative(xi + interval, self.calculated[-1] + interval * k3)
-
-            self.calculated.append(self.calculated[-1] + interval / 6 * (k1 + 2 * k2 + 2 * k3 + k4))
-            xi += interval
-            self.x.append(xi)
-            self.exact.append(self.f.get_exact(xi))
-            self.globalError.append(self.exact[-1] - self.calculated[-1])
-            k1 = self.f.get_derivative(xi - interval, self.calculated[-2])
-            k2 = self.f.get_derivative(xi - interval / 2, self.calculated[-2] + interval * k1 / 2)
-            k3 = self.f.get_derivative(xi - interval / 2, self.calculated[-2] + interval * k2 / 2)
-            k4 = self.f.get_derivative(xi, self.calculated[-2] + interval * k3)
-            prev = k1, k2, k3, k4
-            self.localError.append(
-                self.exact[-1] - self.exact[-2] - interval / 6 * (prev[0] + 2 * prev[1] + 2 * prev[2] + prev[3]))
-
-        return self.calculated, self.exact, self.localError, self.globalError, self.x
-
-
-class Graph:
-    x: list
-    y: list
-    color = "c"
-
-    def __init__(self, x_: list, y_: list, str_: str = None):
-        self.x = x_
-        self.y = y_
-        if str_ is not None:
-            self.color = str_
-
-
-class Printer:
-    def print(self, number_of_subplots: int, list_of_plots: list):
-        fig, axs = plt.subplots(number_of_subplots, 3, sharex="all")
-        for i in range(3):
-            for k in range(number_of_subplots):
-                for j in range(len(list_of_plots[i][k]) - 1):
-                    print(i)
-                    axs[k][i].plot(list_of_plots[i][k][j].x, list_of_plots[i][k][j].y, list_of_plots[i][k][j].color)
-                axs[k][i].set_title(list_of_plots[i][k][-1])
-
-        fig.suptitle("Plots:")
-        fig.tight_layout()
-        draw(window['pyplot_figure'].TKCanvas, fig)
-        # plt.show()
-
-
-class SolverAndDrawer:
-    printer = Printer()
-    graphs = list()
-    eulerSolver: EulerSolver
-    improvedSolver: ImprovedEulerSolver
-    rungeSolver: RungeKuttaSolver
-    x0: float
-    y0: float
-    x1: float
-    interval: float
-    eAns = dict()
-    iAns = dict()
-    rAns = dict()
-
-    def __init__(self, x0: float, y0: float, x1: float, interval: float):
-        self.x0 = x0
-        self.x1 = x1
-        self.y0 = y0
-        self.interval = interval
-        self.eulerSolver = EulerSolver(x0, y0)
-        self.improvedSolver = ImprovedEulerSolver(x0, y0)
-        self.rungeSolver = RungeKuttaSolver(x0, y0)
-
-    def create_dict(self, dictionary: dict, ans: tuple):
-        dictionary["x"] = ans[4]
-        dictionary["calculated"] = ans[0]
-        dictionary["exact"] = ans[1]
-        dictionary["localError"] = ans[2]
-        dictionary["globalError"] = ans[3]
-
-    def solve_all(self):
-        self.create_dict(self.eAns, self.eulerSolver.solve(self.x1, self.interval))
-        self.create_dict(self.iAns, self.improvedSolver.solve(self.x1, self.interval))
-        self.create_dict(self.rAns, self.rungeSolver.solve(self.x1, self.interval))
-
-    def print(self):
-        self.printer.print(2, [[[Graph(self.eAns["x"], self.eAns["calculated"], "r"),
-                                Graph(self.eAns["x"], self.eAns["exact"], "b"),
-                                "Calculated and Exact:"],
-                               [Graph(self.eAns["x"], self.eAns["localError"], "c"),
-                                Graph(self.eAns["x"], self.eAns["globalError"], "m"),
-                                "Local and Global Errors:"]],
-                               [[Graph(self.iAns["x"], self.iAns["calculated"], "r"),
-                                Graph(self.iAns["x"], self.iAns["exact"], "b"),
-                                "Calculated and Exact:"],
-                                [Graph(self.iAns["x"], self.iAns["localError"], "c"),
-                                 Graph(self.iAns["x"], self.iAns["globalError"], "m"),
-                                 "Local and Global Errors:"]],
-                               [[Graph(self.rAns["x"], self.rAns["calculated"], "r"),
-                                Graph(self.rAns["x"], self.rAns["exact"], "b"),
-                                "Calculated and Exact:"],
-                                [Graph(self.rAns["x"], self.rAns["localError"], "c"),
-                                 Graph(self.rAns["x"], self.rAns["globalError"], "m"),
-                                 "Local and Global Errors:"]],
-                               ],)
-
-# x0 = 1.
-# b = 3
-# y0 = 2.
-# h = 0.1
-#
-# eulerSolver = EulerSolver(x0,y0)
-# improverSolver = ImprovedEulerSolver(x0, y0)
-# rungeSolver = RungeKuttaSolver(x0, y0)
-#
-# yi, ye, lte, gte = eulerSolver.solve(x0, y0, b, h)
-# x = list(np.arange(x0, b + h/2, h))
-# graph1 = Graph(x, yi)
-# graph2 = Graph(x, ye)
-#
-# printer = Printer()
-# printer.add_graph(graph1)
-# printer.add_graph(graph2)
-# printer.print()
-#
-# print(yi, ye, lte, gte, sep='\n')
-
-def draw(canvas, figure):
-    figure_canvas_agg = FigureCanvasTkAgg(figure, canvas)
-    figure_canvas_agg.draw()
-    figure_canvas_agg.get_tk_widget().pack(side='top', fill='both', expand=1)
-    return figure_canvas_agg
+f = Function.Variant1()
+a = diffEquation.DifferentialEquation(f, 1, 2, 10, 9)
 
 sg.theme("DarkAmber")
 
-tab1_layout = [[sg.Canvas(key='pyplot_figure')]]
+graph1_layout = [[sg.Canvas(key='pyplot1_figure')]]
 
-menu_layout = [[sg.Text("My work:")],
-          [sg.Text("x0"), sg.InputText("1", size=20), sg.Text("y0"), sg.InputText("2", size=20)],
-          [sg.Text("x1"), sg.InputText("10", size=20), sg.Text("interval"), sg.InputText("0.1", size=20)],
-          [sg.Button("Draw and Calculate"), sg.Button("Close")]]
+menu1_layout = [[sg.Text("My work:")],
+                [sg.Text("x0"), sg.InputText("1", size=20, key='x0'), sg.Text("y0"),
+                 sg.InputText("2", size=20, key='y0')],
+                [sg.Text("x1"), sg.InputText("10", size=20, key='x1'), sg.Text("N"),
+                 sg.InputText("9", size=20, key='N')],
+                [sg.Checkbox('Show Exact', default=True, enable_events=True, key='ES1')],
+                [sg.Checkbox('Show Euler', default=True, enable_events=True, key='EM1')],
+                [sg.Checkbox('Show Improved Euler', default=True, enable_events=True, key='EI1')],
+                [sg.Checkbox('Show Runge-Kutta', default=True, enable_events=True, key='ER1')],
+                [sg.Button("Draw and Calculate"), sg.Button("Close")]]
 
-layout = [[sg.Frame('a', tab1_layout), sg.Frame('b', menu_layout)]]
+layout1 = [[sg.Frame('graph', graph1_layout), sg.Frame('menu', menu1_layout)]]
 
+tab1_layout = sg.Tab("Page 1", layout1)
 
+graph2_layout = [[sg.Canvas(key='pyplot2_figure')]]
 
-window = sg.Window("best window", layout)
+menu2_layout = [[sg.Text("My work:")],
+                [sg.Text("n0"), sg.InputText("9", size=20, key='n0'), sg.Text("n1"), sg.InputText("100", size=20,
+                                                                                                  key='n1')],
+                [sg.Checkbox('Show Euler', default=True, enable_events=True, key='EM2')],
+                [sg.Checkbox('Show Improved Euler', default=True, enable_events=True, key='EI2')],
+                [sg.Checkbox('Show Runge-Kutta', default=True, enable_events=True, key='ER2')],
+                [sg.Button("Count errors"), sg.Button("Close")]]
 
+layout2 = [[sg.Frame('graph', graph2_layout), sg.Frame('menu', menu2_layout)]]
 
+tab2_layout = sg.Tab("Page 2", layout2)
+
+tabGroup = [[sg.TabGroup([[tab1_layout, tab2_layout]])]]
+
+window = sg.Window("best window", tabGroup, finalize=True)
+
+b = GraphErrorCalculator.GraphErrorCalculator(a, 9, 100)
+
+printer = Printer.Printer()
+
+printer.print_1_page_graph(a, window)
+printer.print_2_page_graph(b, window)
 
 while True:
     event, values = window.read()
     print(event, values)
-    if event == 'Close' or event == sg.WINDOW_CLOSED:
+    if event == 'Close0' or event == 'Close' or event == sg.WINDOW_CLOSED:
         break
+    elif event in [4, 5, 6, 7]:
+        printer.print_1_page_graph(a, window, bool(values[4]), bool(values[5]), bool(values[6]), bool(values[7]))
     elif event == "Draw and Calculate":
-        solverAndDrawer = SolverAndDrawer(float(values[0]), float(values[1]), float(values[2]), float(values[3]))
-        solverAndDrawer.solve_all()
-        solverAndDrawer.print()
+        a.resolve(f, float(values['x0']), float(values['y0']), float(values['x1']), int(values['N']))
+        printer.print_1_page_graph(a, window, bool(values['ES1']), bool(values['EM1']), bool(values['EI1']), bool(values['ER1']))
+        b.newValues(a, int(values['n0']), int(values['n1']))
+        printer.print_2_page_graph(b, window, bool(values['EM2']), bool(values['EI2']), bool(values['ER2']))
+    elif event in [10, 11, 12]:
+        printer.print_2_page_graph(b, window, bool(values['EM2']), bool(values['EI2']), bool(values['ER2']))
+    elif event == "Count errors":
+        b.newValues(a, int(values['n0']), int(values['n1']))
+        printer.print_2_page_graph(b, window, bool(values['EM2']), bool(values['EI2']), bool(values['ER2']))
 window.close()
+
+# class Printer:
+#     def print(self, number_of_subplots: int, list_of_plots: list):
+#         fig, axs = plt.subplots(number_of_subplots, 3, sharex="all")
+#         for i in range(3):
+#             for k in range(number_of_subplots):
+#                 for j in range(len(list_of_plots[i][k]) - 1):
+#                     print(i)
+#                     axs[k][i].plot(list_of_plots[i][k][j].x, list_of_plots[i][k][j].y, list_of_plots[i][k][j].color)
+#                 axs[k][i].set_title(list_of_plots[i][k][-1])
+#
+#         fig.suptitle("Plots:")
+#         fig.tight_layout()
+#         draw(window['pyplot_figure'].TKCanvas, fig)
+#         # plt.show()
+#
+#
+# class SolverAndDrawer:
+#     printer = Printer()
+#     graphs = list()
+#     eulerSolver: EulerSolver
+#     improvedSolver: ImprovedEulerSolver
+#     rungeSolver: RungeKuttaSolver
+#     x0: float
+#     y0: float
+#     x1: float
+#     interval: float
+#     eAns = dict()
+#     iAns = dict()
+#     rAns = dict()
+#
+#     def __init__(self, x0: float, y0: float, x1: float, interval: float):
+#         self.x0 = x0
+#         self.x1 = x1
+#         self.y0 = y0
+#         self.interval = interval
+#         self.eulerSolver = EulerSolver(x0, y0)
+#         self.improvedSolver = ImprovedEulerSolver(x0, y0)
+#         self.rungeSolver = RungeKuttaSolver(x0, y0)
+#
+#     def create_dict(self, dictionary: dict, ans: tuple):
+#         dictionary["x"] = ans[4]
+#         dictionary["calculated"] = ans[0]
+#         dictionary["exact"] = ans[1]
+#         dictionary["localError"] = ans[2]
+#         dictionary["globalError"] = ans[3]
+#
+#     def solve_all(self):
+#         self.create_dict(self.eAns, self.eulerSolver.solve(self.x1, self.interval))
+#         self.create_dict(self.iAns, self.improvedSolver.solve(self.x1, self.interval))
+#         self.create_dict(self.rAns, self.rungeSolver.solve(self.x1, self.interval))
+#
+#     def print(self):
+#         self.printer.print(2, [[[Graph(self.eAns["x"], self.eAns["calculated"], "r"),
+#                                 Graph(self.eAns["x"], self.eAns["exact"], "b"),
+#                                 "Calculated and Exact:"],
+#                                [Graph(self.eAns["x"], self.eAns["localError"], "c"),
+#                                 Graph(self.eAns["x"], self.eAns["globalError"], "m"),
+#                                 "Local and Global Errors:"]],
+#                                [[Graph(self.iAns["x"], self.iAns["calculated"], "r"),
+#                                 Graph(self.iAns["x"], self.iAns["exact"], "b"),
+#                                 "Calculated and Exact:"],
+#                                 [Graph(self.iAns["x"], self.iAns["localError"], "c"),
+#                                  Graph(self.iAns["x"], self.iAns["globalError"], "m"),
+#                                  "Local and Global Errors:"]],
+#                                [[Graph(self.rAns["x"], self.rAns["calculated"], "r"),
+#                                 Graph(self.rAns["x"], self.rAns["exact"], "b"),
+#                                 "Calculated and Exact:"],
+#                                 [Graph(self.rAns["x"], self.rAns["localError"], "c"),
+#                                  Graph(self.rAns["x"], self.rAns["globalError"], "m"),
+#                                  "Local and Global Errors:"]],
+#                                ],)
+#
+# #
+# #
+# def draw(canvas, figure):
+#     figure_canvas_agg = FigureCanvasTkAgg(figure, canvas)
+#     figure_canvas_agg.draw()
+#     figure_canvas_agg.get_tk_widget().pack(side='top', fill='both', expand=1)
+#     return figure_canvas_agg
+#
