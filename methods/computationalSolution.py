@@ -7,9 +7,10 @@ class ComputationalSolution(metaclass=ABCMeta):
     _exactValues = list()
     _interval = float
 
-    def __init__(self, exact_values: list, f, interval):
+    def __init__(self, exact_values: list, f, x, interval):
         self._exactValues = exact_values
         self._f = f
+        self._x = x
         self._interval = interval
 
     def solve(self, x0, y):

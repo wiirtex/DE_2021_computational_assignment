@@ -5,21 +5,12 @@ import math
 class EulerSolution(ComputationalSolution):
     def solve(self, x0, y0: float):
         self._computedValues = [y0]
-        xi = x0
         self._error = [0]
-        for i in range(1, len(self._exactValues)):
-            xi += self._interval
-            if self._interval <= xi < 0:
-                self._computedValues.append(xi)
-                self._error.append(self._error[-1])
-                continue
-            if 0 <= xi < self._interval:
-                self._computedValues.append(-xi)
-                self._error.append(self._error[-1])
-                continue
-            self._computedValues.append(self._computedValues[-1] + self._interval * self._f(xi, self._computedValues[-1]))
+        for i in range(1, len(self._x)):
+            self._computedValues.append(self._computedValues[-1] + self._interval * self._f(self._x[i], self._computedValues[-1]))
 
-            self._error.append(math.fabs(self._exactValues[i] - self._computedValues[-2]))
+            self._error.append(math.fabs(self._exactValues[i - 1] - self._computedValues[-2]))
+        # self._error.append(math.fabs(self._exactValues[1] - self._computedValues[-1]))
 
     def getComputedValues(self):
         return self._computedValues
