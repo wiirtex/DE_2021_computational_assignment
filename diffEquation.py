@@ -1,15 +1,14 @@
-import math
-
-from methods import computationalSolution as cs
 import Function
-from methods import Euler
-from methods import Improved
-from methods import RungeKutta
+import Euler
+import Improved
+import RungeKutta
 
 
 class DifferentialEquation:
+    a: int
 
     def __init__(self, f: Function.AbstractFunction, x0: float, y0: float, x: float, n: int):
+        n += 1
         self.__x0 = x0
         self.__y0 = y0
         self.__X = x
@@ -29,10 +28,10 @@ class DifferentialEquation:
         self.__solve()
 
     def resolve(self, f: Function.AbstractFunction, x0: float, y0: float, x: float, n: int):
-        self.__init__(f, x0, y0, x, n)
+        self.__init__(f, x0, y0, x, n + 1)
 
     def resolve_n(self, n: int):
-        self.__init__(self.__function, self.__x0, self.__y0, self.__X, n)
+        self.__init__(self.__function, self.__x0, self.__y0, self.__X, n + 1)
 
     def __solve(self):
         self.__euler = Euler.EulerSolution(self.getExactValues(), self.__f, self.__x, self.__interval)
@@ -54,8 +53,7 @@ class DifferentialEquation:
     def __countX(self):
         self.__x.clear()
         for i in range(self.__n):
-            if not (-2 * self.__interval < self.__x0 + i * self.__interval < 2 * self.__interval):
-                self.__x.append(self.__x0 + i * self.__interval)
+            self.__x.append(self.__x0 + i * self.__interval)
 
     def getXValues(self) -> list:
         if len(self.__x) == 0:

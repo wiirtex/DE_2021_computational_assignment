@@ -5,7 +5,7 @@ import numpy as np
 class AbstractFunction(metaclass=ABCMeta):
     c: float
 
-    def solve_ivp(self, x: float, y: float):
+    def solve_ivp(self, x: float, y: float) -> float:
         """
 
         :rtype: object
@@ -21,7 +21,7 @@ class AbstractFunction(metaclass=ABCMeta):
 
 
 class Variant1(AbstractFunction):
-    def solve_ivp(self, x: float, y: float):
+    def solve_ivp(self, x: float, y: float) -> float:
         self.c = (y + x) / x ** 2
         return self.c
 
